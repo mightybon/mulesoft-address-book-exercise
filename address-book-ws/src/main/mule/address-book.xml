@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+    <apikit:config name="address-book-config" raml="address-book.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="291b95c3-9d4d-480a-86b7-c2f10bd688fd">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <flow name="address-book-main">
+        <http:listener path="/api/*" config-ref="HTTP_Listener_config">
+            <http:response statusCode="#[vars.httpStatus default 200]" />
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="address-book-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST" enableNotifications="true" logException="true">
+                <set-variable value="401" doc:name="Unauthorized Set Variable" doc:id="6401936e-5622-4a93-81cd-f184f53a6116" variableName="httpStatus"/>
+				<ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="11eb1563-50fc-41f6-8824-d9f5dee197cf">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Unauthorized",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[401]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <logger level="INFO" doc:name="Logger" doc:id="c9207afd-fc67-4cc6-854b-113ecfb9c6b2" />
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <flow-ref doc:name="Flow Reference" doc:id="a84c5e77-c62f-41f9-9d0d-cd2a0b8efc9a" name="setHttpStatus" />
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="ffc9621b-712e-4c37-8332-63b96f3cfbf2">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Resource not found",
+	responseCode: vars.http_status as String
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <logger level="INFO" doc:name="Logger" doc:id="7d72759e-e98f-4396-ae23-ef32ee963849" />
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED" enableNotifications="true" logException="true">
+                <flow-ref doc:name="Flow Reference" doc:id="27b00a81-c38c-4d28-b58a-da3a2903d0c4" name="setHttpStatus" />
+                <ee:transform doc:name="Transform Message" doc:id="d4bb53a6-b6fa-4918-aff2-5ef5ca1f9836">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Method not allowed",
+	responseCode: vars.http_status as String
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <logger level="INFO" doc:name="Logger" doc:id="a15088a0-3a71-4de8-8095-62dbbc162f85" />
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE" enableNotifications="true" logException="true">
+                <flow-ref doc:name="Flow Reference" doc:id="6d729568-9a11-49f3-ab74-a3670b744e43" name="setHttpStatus" />
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="3967f31b-4e0c-4970-981a-1bd8ac9e4e07">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{	
+	message: "Not acceptable",
+	responseCode: vars.http_status as String
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <logger level="INFO" doc:name="Logger" doc:id="3a6532c6-bea0-4ec1-8fe2-709a02ab12e1" />
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <flow-ref doc:name="Flow Reference" doc:id="9b847ff5-131e-4579-a44c-f26e9d214291" name="setHttpStatus" />
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="0e72c2de-feb5-4350-b830-c666dfd39ad2">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Unsupported media type",
+	responseCode: vars.http_status as String
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <logger level="INFO" doc:name="Logger" doc:id="8797a532-1f24-4d3b-9f9b-ec04c702e637" />
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED" enableNotifications="true" logException="true">
+                <flow-ref doc:name="Flow Reference" doc:id="451c1906-78d8-44af-87dd-37b83150b098" name="setHttpStatus" />
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <logger level="INFO" doc:name="Logger" doc:id="c2978dc4-517e-4dde-8076-26f98ab3b9a5" />
+            </on-error-propagate>
+            <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="cf7e1cf5-ad23-4a7f-9a0e-022e244e5592" type="APP:INVALID_HEADER">
+				<set-variable value="401" doc:name="Set Variable" doc:id="0047607d-5e15-4e45-91f7-fd7f20015939" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="d45fd985-f1fc-438a-af15-86ea86739e98" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Unauthorized",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="10601a98-efb4-4f2b-a511-5ff8f2f7c7d4" type="APP:BAD_REQUEST">
+				<set-variable value="400" doc:name="Bad Request Set Variable" doc:id="b57a8020-192f-402b-b50c-64e9e14511c0" variableName="httpStatus" />
+				<ee:transform doc:name="Bad Request Message" doc:id="e3a1769f-94b6-49aa-b0e5-efc70532a76a" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Bad Request",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="379c9368-2fe8-49b3-b8e7-af650a12c242" type="APP:USER_NOT_FOUND">
+				<set-variable value="404" doc:name="User Not Found Set Variable" doc:id="a1888135-cb97-49fe-b493-a4d4867864e5" variableName="httpStatus"/>
+				<ee:transform doc:name="User Not Found Message" doc:id="f1999132-002f-438d-9ecf-0776ddd4637d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "User not found",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+        </error-handler>
+    </flow>
+    <sub-flow name="setHttpStatus" doc:id="76624e3a-3c74-427f-87d1-a1ef5d9471bb">
+        <ee:transform doc:name="Transform Message" doc:id="11a3b8a1-3e29-4565-93e4-525e7706045e" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+}]]></ee:set-payload>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <set-variable value="#[vars.httpStatus]" doc:name="Set Variable" doc:id="c447911e-73ab-4cdb-b93e-2b44a36ce4ee" variableName="http_status" />
+    </sub-flow>
+    <flow name="address-book-console">
+        <http:listener path="/console/*" config-ref="HTTP_Listener_config">
+            <http:response statusCode="#[vars.httpStatus default 200]" />
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="address-book-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\getUsers:address-book-config">
+        <flow-ref doc:name="Flow Reference" doc:id="5b21a1df-79cb-47ad-9e2d-44bec4971d0c" name="getUsers" />
+    </flow>
+    <flow name="get:\getUsers\(username):address-book-config">
+        <flow-ref doc:name="Flow Reference" doc:id="ca042294-3688-4bb6-bb03-802ed078a2b7" name="getUserByUsername" />
+    </flow>
+    <flow name="post:\createUser:address-book-config">
+        <flow-ref doc:name="Flow Reference" doc:id="ed10c9ee-650f-4cab-8938-0cc5d8cbfce5" name="createUser" />
+    </flow>
+    <flow name="post:\createUsers:address-book-config">
+        <flow-ref doc:name="Flow Reference" doc:id="98b6f236-83af-4d92-83b8-eba5de1867dc" name="createUsers" />
+    </flow>
+    <flow name="delete:\deleteUser\(username):address-book-config">
+        <flow-ref doc:name="Flow Reference" doc:id="c3ca9ab8-2d44-400c-92d2-4ac91ca7df62" name="deleteUser" />
+    </flow>
+    <flow name="patch:\updateUserStatus\(username):address-book-config">
+		<flow-ref doc:name="Flow Reference" doc:id="282a8f44-b238-42f8-ae89-df8e000799ad" name="updateUserStatus"/>
+    </flow>
+</mule>

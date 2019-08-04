@@ -1,0 +1,13 @@
+[{
+	"age": 23,
+	"dateRegistered": "20-08-2012",
+	"fullname": "Jack Daniels",
+	"gender": "male",
+	"username": "jack_d"
+}, {
+	"age": 25,
+	"dateRegistered": "20-08-2012",
+	"fullname": "Captain Morgan",
+	"gender": "male",
+	"username": "capt_morgan"
+}]

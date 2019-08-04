@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:xml-module="http://www.mulesoft.org/schema/mule/xml-module"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/xml-module http://www.mulesoft.org/schema/mule/xml-module/current/mule-xml-module.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="fcbff90e-d06e-42e1-bed0-edc65da1070a" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="k4b4LUk4n3" database="mule" />
+	</db:config>
+	<flow name="getUsers" doc:id="22bdad79-a170-4c77-a704-fa5bde356a09" >
+		<logger level="INFO" doc:name="Starting Get All Active Users" doc:id="14313738-09c1-4564-9f80-e4d687fb10ac" message="==========Starting Get All Active Users...=========="/>
+		<flow-ref doc:name="Validate Header Flow" doc:id="19ba0714-56a9-4462-8323-058b1b7b89b3" name="validateHeader"/>
+		<db:select doc:name="Get All Active Users" doc:id="de383b92-4901-4747-a31f-78e29688d775" config-ref="Database_Config">
+			<db:sql >select ab.username, ab.date_registered, ud.fullname, ud.birthdate, ud.gender from address_book ab inner join user_details ud on ab.userId=ud.userId where ab.active = true;</db:sql>
+		</db:select>
+		<try doc:name="Try" doc:id="9b3a46a5-e7ba-4a6a-82c8-43f46d46f237" >
+			<validation:is-true doc:name="Is Payload Not Empty" doc:id="34235d01-b59e-4867-8c25-f733d230eb5e" expression="#[(payload != null) and (sizeOf(payload) &gt; 0)]" message="User Not Found">
+				<error-mapping sourceType="VALIDATION:INVALID_BOOLEAN" targetType="APP:USER_NOT_FOUND" />
+			</validation:is-true>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="bb63f132-c09a-4aa7-9b6c-6c20e12f5cc5" type="APP:USER_NOT_FOUND"/>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="User Found Message" doc:id="b0312b5f-c80a-4fc5-b164-b1e9142e2fee" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{Users: payload map {
+	username: $.username,
+	fullname: $.fullname,
+	gender: if ($.gender == "M") "male" else if ($.gender == "F") "female" else "",
+	dateRegistered: $.date_registered,
+	age: (now() - $.birthdate as Date {format: "yyyy-M-d"}).years
+},
+responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="End Get All Active Users" doc:id="ff15610e-d48e-4757-a410-3a5f428d98b3" message="==========End Get All Active Users...=========="/>
+	</flow>
+	<flow name="getUserByUsername" doc:id="2bffe53d-ed5c-49fe-96bd-6763ca623fcb" >
+		<logger level="INFO" doc:name="Starting Get User By Username" doc:id="02168a20-a896-4686-976c-6ecab56acb06" message="==========Starting Get User By Username...=========="/>
+		<flow-ref doc:name="Validate Header Flow" doc:id="085f24a6-5108-4115-9618-18fbbf854d00" name="validateHeader"/>
+		<set-variable value="#[attributes.uriParams.username]" doc:name="Set Username Variable" doc:id="53f4ea1e-5a49-4681-9efc-9ae424613293" variableName="username" />
+		<flow-ref doc:name="Get User By Username Flow" doc:id="cdb33c2c-1488-4430-83cd-19e0bff0bddc" name="selectUserByUsername"/>
+		<flow-ref doc:name="Validate User Is Found Flow" doc:id="74896f84-e5b0-469a-babe-67a68da73b9e" name="ValidateIfUserIsFoundAndActive"/>
+		<ee:transform doc:name="User Found Message" doc:id="baf2dd72-911b-4ab7-880d-440d60f7b045" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map {
+	username: $.username,
+	fullname: $.fullname,
+	gender: if ($.gender == "M") "male" else if ($.gender == "F") "female" else "",
+	dateRegistered: $.date_registered,
+	responseCode: vars.httpStatus as String,
+	age: (now() - $.birthdate as Date {format: "yyyy-M-d"}).years
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="End Get User" doc:id="92f7c583-63ec-4274-adfe-554d3d83264b" message="==========End Get User Process...=========="/>
+	</flow>
+	<sub-flow name="insertDB" doc:id="8d308e72-38b7-43a1-8952-f68dd6f2acd0" >
+		<set-variable value="#[payload.username]" doc:name="Set Username Variable" doc:id="0b3e5877-4f2e-44f7-a372-349e3382c420" variableName="username" />
+		<set-variable value="#[payload.fullname]" doc:name="Set Fullname Variable" doc:id="c8647370-d110-480c-ac36-68f60ddc9965" variableName="fullname" />
+		<set-variable value="#[payload.birthdate]" doc:name="Set Birthdate Variable" doc:id="2b3e393f-4dda-4042-a015-0c3fed1c7114" variableName="birthdate" />
+		<set-variable value='#[if(lower(payload.gender) == "male") "M" else if(lower(payload.gender) == "female") "F" else ""]' doc:name="Set Gender Variable" doc:id="d06e7998-ba4e-436f-8704-c670739f5ece" variableName="gender" />
+		<set-variable value="#[payload.dateRegistered]" doc:name="Set Date Registered Variable" doc:id="576141ed-8c03-486b-aa65-b4f636c1189b" variableName="date_registered"/>
+		<flow-ref doc:name="Generate User Id Flow" doc:id="fe08c81f-5621-4eca-b625-9363cafebef4" name="getNextUserId"/>
+		<set-variable value="#[payload[0].nextUserId]" doc:name="Set Next User Id Variable" doc:id="5ddd8ea8-f745-49ff-90bc-19449866ca6a" variableName="userId" />
+		<logger level="INFO" doc:name="Start Save User to Address Book" doc:id="5bead5a9-df40-4f79-98dc-699fa1b6458b" message="==========Saving User to Address Book table...=========="/>
+		<db:insert doc:name="Save to Address Book Table" doc:id="1178b697-98ae-4ac2-8fd6-b9983fa7d15c" config-ref="Database_Config">
+			<db:sql>insert into address_book(userId, username, date_registered) values (:param_userId, :param_username, :param_date_registered);</db:sql>
+			<db:input-parameters><![CDATA[#[{'param_userId':vars.userId, 'param_username':vars.username, 'param_date_registered':vars.date_registered}]]]></db:input-parameters>
+		</db:insert>
+		<logger level="INFO" doc:name="Successfully Saved User to Address Book Table" doc:id="232178bf-61ca-43f8-8a78-19c4ff8bc77d" message="==========Successfully Saved User to Address Book Table...==========" />
+		<logger level="INFO" doc:name="Start Save User Details" doc:id="bdb1127e-4c7c-4479-9c77-6437bcd8a7a1" message="==========Saving User Details...=========="/>
+		<db:insert doc:name="Save to User Details Table" doc:id="ccd8bb97-2940-46f2-8650-30c6135d4524" config-ref="Database_Config">
+			<db:sql>insert into user_details(userId, fullname, birthdate, gender) values (:userId,:fullname,:birthdate,:gender);</db:sql>
+			<db:input-parameters><![CDATA[#[{'userId':vars.userId, 'fullname':vars.fullname, 'birthdate':vars.birthdate, 'gender':vars.gender}]]]></db:input-parameters>
+		</db:insert>
+		<logger level="INFO" doc:name="Successfully Saved Records to User Details Table" doc:id="82028cc8-d309-4c45-a938-2a2e2cbec8b5" message="==========Successfully Saved User to User Details Table...=========="/>
+	</sub-flow>
+	<flow name="createUser" doc:id="ed9aec88-64ce-4ab0-bc0d-bd5d3de81a1d" >
+		<logger level="INFO" doc:name="Starting Create User" doc:id="baed0302-4199-46ce-b293-a867ff01ea00" message="==========Starting create user...=========="/>
+		<flow-ref doc:name="Validate Header Flow" doc:id="ae9202de-34d8-47ca-923c-9bd3aae0831e" name="validateHeader"/>
+		<flow-ref doc:name="Validate Payload Flow" doc:id="9e7dab46-81f5-4211-b838-48d4a3ed9d43" name="validatePayload"/>
+		<flow-ref doc:name="Insert to DB Flow" doc:id="ce7775af-264e-468e-9f60-0efb680f6d60" name="insertDB"/>
+		<ee:transform doc:name="Create User Message" doc:id="e127a77e-f7b7-4391-8fd2-2dacaeabd45d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "success",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="End Create User" doc:id="daf170dd-15da-423c-939c-074bb0c54810" message="==========End create user...=========="/>
+	</flow>
+	<flow name="createUsers" doc:id="c5becac9-eca5-47ed-8e20-749e6d1b2aad" >
+		<logger level="INFO" doc:name="Start Create Users" doc:id="bbaaef06-632e-4250-b84d-9f29acafc45c" message="==========Starting creating users...=========="/>
+		<flow-ref doc:name="Validate Header Flow" doc:id="53f52356-015e-4e9f-84ca-649321af74f6" name="validateHeader"/>
+		<flow-ref doc:name="Validate Payload Flow" doc:id="c4bef829-bb40-4919-8986-9032b3ff1bac" name="ValidatePayloadCollection"/>
+		<foreach doc:name="For Each" doc:id="225649a4-d3b4-4a01-be27-7bdd52571193" collection="payload">
+			<flow-ref doc:name="Insert Users to DB" doc:id="f80ffff1-5bea-42f6-aa2e-b5625f67012e" name="insertDB"/>
+		</foreach>
+		<ee:transform doc:name="Create Users Message" doc:id="87493877-9990-43ff-b98b-ea322d356bc4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "success",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="End Create User" doc:id="5b8f6c51-a829-48e5-9b5d-6a1a24d3e8bb" message="==========Ended creating users...=========="/>
+	</flow>
+	<flow name="deleteUser" doc:id="eba81972-a1cb-45d9-99d5-3c83ce31e9b0" >
+		<logger level="INFO" doc:name="Start Delete User" doc:id="e94b8da7-944b-41a3-b0c3-484d5f9cb169" message="==========Starting Delete User...=========="/>
+		<flow-ref doc:name="Validate Header Flow" doc:id="1f31fb5d-6292-4447-9949-3d5148ec011b" name="validateHeader"/>
+		<set-variable value="#[attributes.uriParams.username]" doc:name="Set Username Variable" doc:id="0122fe44-4b86-46d7-b7df-edd73105e2f0" variableName="username"/>
+		<flow-ref doc:name="Get User By Username Flow" doc:id="159c7e26-8091-4334-9ebf-e5c7ac140889" name="selectUserByUsername"/>
+		<flow-ref doc:name="Validate User Is Found Flow" doc:id="c2e656c2-968b-47e4-84d6-c01070c71fee" name="validateIfUserIsFound"/>
+		<set-variable value="#[payload[0].userId]" doc:name="Set User Id Variable" doc:id="8eb58b98-f4f9-4394-a875-264b3a6e45a0" variableName="userId"/>
+		<logger level="INFO" doc:name="Start Delete User" doc:id="2c6cd506-e6a0-4be7-a701-2446d6072b02" message="==========Start process of deleting user from User Details table...=========="/>
+		<db:delete doc:name="Delete User from User Details Table" doc:id="ca482334-a7c3-4c6e-bc04-d2d9148e891e" config-ref="Database_Config">
+			<db:sql>delete from user_details where userId = :userId</db:sql>
+			<db:input-parameters><![CDATA[#[{'userId':vars.userId}]]]></db:input-parameters>
+		</db:delete>
+		<logger level="INFO" doc:name="End Delete User" doc:id="3b7198d8-e6f5-4b24-b931-996bd17891eb" message="==========Successfully deleted user...=========="/>
+		<logger level="INFO" doc:name="Start Delete User from Address Book" doc:id="b4cce9e5-8ae6-43d8-aa5f-71a6be6107ba" message="==========Start deleting user from Address Book table...=========="/>
+		<db:delete doc:name="Delete User from Address Book Table" doc:id="fdaeedfd-0bf9-4c95-954c-09affb7421d3" config-ref="Database_Config">
+			<db:sql >delete from address_book where userId = :userId</db:sql>
+			<db:input-parameters ><![CDATA[#[{'userId':vars.userId}]]]></db:input-parameters>
+		</db:delete>
+		<logger level="INFO" doc:name="End Delete User from Address Book" doc:id="4d1e018c-855c-4c8f-9bd4-488199c45c7a" message="==========Successfully deleted user...=========="/>
+		<ee:transform doc:name="Delete User Message" doc:id="2abfd5b3-2f24-4ea3-a5d2-d5fd988dee41" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "success",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="End Delete User Process" doc:id="624da80d-f8a3-4469-937a-ca8914185fec" message="==========Ended delete user process...=========="/>
+	</flow>
+	<flow name="updateUserStatus" doc:id="7d85a713-10a4-4921-bec7-1c54cea8b33b" >
+		<logger level="INFO" doc:name="Start Update User Status" doc:id="1f0f66d5-7862-40db-bb84-524dde7098b2" message="==========Starting update User status...=========="/>
+		<flow-ref doc:name="Validate Header Flow" doc:id="ddc01c93-75ab-4d0a-bb10-37c0637b839d" name="validateHeader"/>
+		<set-variable value="#[attributes.uriParams.username]" doc:name="Set Username Variable" doc:id="d0ade44e-180c-48f9-8d24-a0a927caeab9" variableName="username"/>
+		<set-variable value='#[if (lower(payload.active) == "true") "1" else if (lower(payload.active) == "false") "0" else ""]' doc:name="Set User Status Variable" doc:id="131fbbec-9ec0-4493-a8e2-7aa1338a3fa4" variableName="active"/>
+		<flow-ref doc:name="Get User by Username Flow" doc:id="c6541578-07e8-424d-8ac7-87e9102828f8" name="selectUserByUsername"/>
+		<flow-ref doc:name="Validate User Is Found Flow" doc:id="23f5a73b-dc9e-4be9-8542-d179f8399aa1" name="validateIfUserIsFound"/>
+		<set-variable value="#[payload[0].userId]" doc:name="Set UserId Variable" doc:id="7bd531bd-8482-45db-b8b9-60e1078c6a87" variableName="userId" />
+		<logger level="INFO" doc:name="Start Update User" doc:id="605abfb0-367d-4d20-a80d-b76944faf1dd" message="==========Start process of updating user status...=========="/>
+		<db:update doc:name="Update User status on DB" doc:id="e70a0406-027e-4f27-84cb-8834cb6901d7" config-ref="Database_Config">
+			<db:sql >update address_book set active=:status where userId=:userId;</db:sql>
+			<db:input-parameters ><![CDATA[#[{'userId':vars.userId, 'status':vars.active}]]]></db:input-parameters>
+		</db:update>
+		<logger level="INFO" doc:name="End Update User" doc:id="2730ccaf-2ed1-4490-a15f-b42b0bc37123" message="==========Successfully updated user...=========="/>
+		<ee:transform doc:name="Update Status Message" doc:id="b0f95682-fe2b-4c0c-b801-a97ec018ec3a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "success",
+	responseCode: vars.httpStatus as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="End Update User Status" doc:id="62ed8df6-3a81-4e5f-8fe8-5a2826e9eeb1" message="==========Ended user status update...=========="/>
+	</flow>
+	<sub-flow name="selectUserByUsername" doc:id="d5619544-d623-4932-9bd4-de6cdecc20cc" >
+		<logger level="INFO" doc:name="Start Get User from DB" doc:id="ed0eeae3-5f1a-4a02-a49b-325897942bb0" message="==========Start process for Get user from DB...=========="/>
+		<db:select doc:name="Get User from DB" doc:id="3226e5ac-f144-4abc-95a4-56e5cb380067" config-ref="Database_Config" >
+			<db:sql >select ab.userId, ab.username, ab.date_registered, ab.active, ud.fullname, ud.birthdate, ud.gender from address_book ab inner join user_details ud on ab.userId=ud.userId where ab.username=:username</db:sql>
+			<db:input-parameters ><![CDATA[#[{'username':vars.username}]]]></db:input-parameters>
+		</db:select>
+		<logger level="INFO" doc:name="End Get User from DB" doc:id="de9fc99f-5238-4870-8dd7-70df22109b88" message="==========End process for Get user from DB...=========="/>
+	</sub-flow>
+	<sub-flow name="getNextUserId" doc:id="fa01efd8-1412-4232-96bf-29233fa7a07d" >
+		<logger level="INFO" doc:name="Start Get Next Id" doc:id="eab69cc8-1087-4e49-a73c-a67ff952b5cb" message="==========Get next user id from Address Book table...=========="/>
+		<db:select doc:name="Get next UserId" doc:id="8455ff29-eff8-482f-92ae-f37ddb0eff2e" config-ref="Database_Config">
+			<db:sql >select max(userId) + 1 as nextUserId from address_book;</db:sql>
+		</db:select>
+		<logger level="INFO" doc:name="End Get Next Id" doc:id="3dec2db3-cabf-4878-96d8-32b3eb3b0860" message="==========End process for Get next user id...=========="/>
+	</sub-flow>
+	<sub-flow name="validateHeader" doc:id="ff683408-4201-4ecf-9d58-5967f1a1bf5d" >
+		<set-variable value="qwerty" doc:name="Set Authorization Header" doc:id="92c1cefc-9220-4a8d-9e1b-fa686e37a12b" variableName="auth_header_value" />
+		<try doc:name="Try" doc:id="6686fe97-71ff-4f05-bc9e-99f0307c6f5d" >
+			<validation:is-true doc:name="Is Header Correct" doc:id="cce42cc0-f703-4160-ba5f-e7fa339b273f" expression="#[(vars.auth_header_value == attributes.headers.authorization)]" message="Invalid Authorization header" >
+				<error-mapping sourceType="VALIDATION:INVALID_BOOLEAN" targetType="APP:INVALID_HEADER" />
+			</validation:is-true>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2a2825d5-bb39-49c0-a8a3-4db46412483d" type="APP:INVALID_HEADER" />
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="ValidatePayloadCollection" doc:id="785e80be-1fd4-43db-b292-7912e38289fc" >
+		<foreach doc:name="Validate Each Payload" doc:id="7cb9d2dd-2107-4f72-aa77-60d3d3f280e4" collection="payload">
+			<flow-ref doc:name="Validate Payload Flow" doc:id="3403c52f-4e21-4d36-8fd7-356d25053eb1" name="validatePayload"/>
+		</foreach>
+	</sub-flow>
+	<sub-flow name="validatePayload" doc:id="8ee8768d-3b66-4b9d-99f3-dfa23d9f508f" >
+		<try doc:name="Try" doc:id="32ac2a07-b37c-46c1-8191-a3fe966a0b15" >
+			<json:validate-schema doc:name="Validate schema" doc:id="3cb697e2-7d18-483e-af84-c4257057c93d" schema="schemas/createAddressBookSchema.json">
+				<error-mapping sourceType="JSON:SCHEMA_NOT_HONOURED" targetType="APP:BAD_REQUEST" />
+			</json:validate-schema>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="99a10e4e-acb3-443d-8b47-c9d1678d8a62" type="APP:BAD_REQUEST"/>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="ValidateIfUserIsFoundAndActive" doc:id="f9244ecf-bcef-4d95-a894-ea4f616040e3" >
+		<try doc:name="Try" doc:id="00ac0ccd-680c-40bb-866b-7c352f3da7f7" >
+			<validation:is-true doc:name="Is User Found and Active" doc:id="a82275c7-4b50-4697-bde9-88f8844c0fd2" expression='#[(payload != null) and (sizeOf(payload) &gt; 0) and (payload[0].active == true)]' message="User not found" >
+				<error-mapping sourceType="VALIDATION:INVALID_BOOLEAN" targetType="APP:USER_NOT_FOUND" />
+			</validation:is-true>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="8cf2b71f-ff06-4bd8-8e47-8c1ca20ff0ed" type="APP:USER_NOT_FOUND"/>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="validateIfUserIsFound" doc:id="fac5b5b2-fd4d-4f6b-a9d5-381f977d67d4" >
+		<try doc:name="Try" doc:id="9f58e62e-e63f-447d-8db4-4c87d24e700d" >
+			<validation:is-true doc:name="Is User Found" doc:id="c47240f1-14bd-4cc3-bc1a-e72357f0864e" expression="#[(payload != null) and (sizeOf(payload) &gt; 0)]" message="User not found" >
+				<error-mapping sourceType="VALIDATION:INVALID_BOOLEAN" targetType="APP:USER_NOT_FOUND" />
+			</validation:is-true>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c2b084cf-ce9f-473a-ba90-d4e97147c4f4" type="APP:USER_NOT_FOUND" />
+			</error-handler>
+		</try>
+	</sub-flow>
+</mule>

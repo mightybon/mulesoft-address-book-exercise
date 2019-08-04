@@ -1,0 +1,179 @@
+#%RAML 1.0
+version: v1
+title: My Address Book
+
+types:
+  AddressBook: !include datatypes/AddressBookDataType.raml
+  
+/createUser:
+  post:
+    body:
+      application/json:
+        example: !include examples/AddressBookCreateUserExample.raml
+    headers:
+      Authorization:
+        displayName: Authorization
+        type: string
+        required: true
+    responses:
+      201:
+        body:
+          application/json:
+            example: !include examples/Http-201_Example.raml
+
+      400:
+        body:
+          application/json:
+            example: !include examples/Error-400_Example.raml
+              
+      401:
+        body:
+          application/json:
+            example: !include examples/Error-401_Example.raml
+
+      500:
+        body:
+          application/json:
+            example: !include examples/Error-500_Example.raml
+            
+/createUsers:
+  post:
+    body:
+      application/json:
+        example: !include examples/AddressBookCreateUserExample.raml
+          
+    headers:
+      Authorization:
+        displayName: Authorization
+        type: string
+        required: true
+    responses:
+      202:
+        body:
+          application/json:
+            example: !include examples/Http-202_Example.raml
+              
+      400:
+        body:
+          application/json:
+            example: !include examples/Error-400_Example.raml
+              
+      401:
+        body:
+          application/json:
+            example: !include examples/Error-401_Example.raml
+
+      500:
+        body:
+          application/json:
+            example: !include examples/Error-500_Example.raml
+                              
+/getUsers:
+  get:
+    headers:
+      Authorization:
+        displayName: Authorization
+        type: string
+        required: true
+    responses:
+      200:
+        body:
+          application/json:
+            type: AddressBook[]
+            example: !include examples/AddressBookArrayExample.raml
+      401:
+        body:
+          application/json:
+            example: !include examples/Error-404_Example.raml
+
+      500:
+        body:
+          application/json:
+            example: !include examples/Error-500_Example.raml
+  
+  /{username}:
+    get:
+      headers:
+        Authorization:
+          displayName: Authorization
+          type: string
+          required: true
+      responses:
+        200:
+          body:
+            application/json:
+              type: AddressBook
+              example: !include examples/AddessBookExample.raml
+
+        401:
+          body:
+            application/json:
+              example: !include examples/Error-401_Example.raml
+              
+        404:
+          body:
+            application/json:
+              example: !include examples/Error-404_Example.raml
+
+        500:
+          body:
+            application/json:
+              example: !include examples/Error-500_Example.raml
+
+/updateUserStatus:
+  /{username}:
+    patch:
+      headers:
+        Authorization:
+          displayName: Authorization
+          type: string
+          required: true
+      responses:
+        200:
+          body:
+            application/json:
+              example: !include examples/Http-200_Example.raml
+
+        401:
+          body:
+            application/json:
+              example: !include examples/Error-401_Example.raml
+              
+        404:
+          body:
+            application/json:
+              example: !include examples/Error-404_Example.raml
+
+        500:
+          body:
+            application/json:
+              example: !include examples/Error-500_Example.raml
+
+/deleteUser:
+  /{username}:
+    delete:
+      headers:
+        Authorization:
+          displayName: Authorization
+          type: string
+          required: true
+      responses:
+        200:
+          body:
+            application/json:
+              example: !include examples/Http-200_Example.raml
+
+        401:
+          body:
+            application/json:
+              example: !include examples/Error-401_Example.raml
+              
+        404:
+          body:
+            application/json:
+              example: !include examples/Error-404_Example.raml
+
+        500:
+          body:
+            application/json:
+              example: !include examples/Error-500_Example.raml

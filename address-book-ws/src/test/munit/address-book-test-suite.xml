@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="address-book-test-suite.xml" />
+	<munit:test name="getUsersSuccessTest" description="Test" doc:id="32e83820-eed3-46a6-bef0-da7d1fff30f8" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="f31da7cc-4015-40e0-b553-09606b1b77ea" processor="db:select">
+				<munit-tools:with-attributes />
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to getUsers" doc:id="a8856155-0d27-419b-88d5-f96d25eef65f" name="getUsers"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="fa0f404b-c302-4daf-ba29-c546b3000968" expression="#[payload]" is="#[MunitTools::notNullValue()]" message="Expected payload returns null"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="getUserByUsernameSuccessTest" description="Test" doc:id="ddcea3e8-49c7-4de0-95ed-a38f5f553345" >
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="f504457e-9901-49ff-8a27-0bf276152224" >
+				<munit:attributes value="#[MunitTools::getResourceAsString('mocked/attributes.json')]" encoding="UTF-16" mediaType="application/json"/>
+				<munit:variables >
+					<munit:variable key="username" value="salt" />
+				</munit:variables>
+			</munit:set-event>
+			<flow-ref doc:name="Flow-ref to getUserByUsername" doc:id="4017869b-5aac-4db5-9cc2-fd08253448f2" name="getUserByUsername"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="c2050c1c-0857-446c-a8dd-bb84623e974b" expression="#[payload]" is="#[MunitTools::notNullValue()]" message="Expected payload returns null"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="createUserSuccessTest" description="Success Test" doc:id="89c532d3-827f-4ce3-85e6-88cfbd60794e" >
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="3a7018d1-b5ee-4266-950b-cc261df9f928">
+				<munit:attributes value="#[MunitTools::getResourceAsString('mocked/attributes.json')]" encoding="UTF-16" mediaType="application/json" />
+			</munit:set-event>
+			<flow-ref doc:name="Flow-ref to createUser" doc:id="7991cfac-b098-4264-86bf-6fdbe215e8f6" name="createUser"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="dc759fb8-e19f-4dde-af18-129c4f7bb8f6" expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(201)]" message="Expected status is 201 but returns #[vars.httpStatus]"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="createUsersSuccessTest" description="Test" doc:id="3527d07d-ab34-4efe-bf6c-c4980796c294" >
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="744ca835-8d73-4ae5-a111-06d6ac12c290">
+				<munit:attributes value="#[MunitTools::getResourceAsString('mocked/attributes.json')]" encoding="UTF-16" mediaType="application/json" />
+			</munit:set-event>
+			<flow-ref doc:name="Flow-ref to createUsers" doc:id="c6711c55-34eb-49bc-873c-5968bbb82818" name="createUsers"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="cecfb362-e8a9-475e-83cd-e57255514f34" expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(202)]" message="Expected status is 202 but returns #[vars.httpStatus]"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="deleteUserSuccessTest" description="Test" doc:id="43b99df1-7267-4969-becf-f58711faf47d" >
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="ad16e3dd-8015-440f-a17b-4ef46c69357c">
+				<munit:attributes value="#[MunitTools::getResourceAsString('mocked/attributes.json')]" encoding="UTF-16" mediaType="application/json" />
+			</munit:set-event>
+			<flow-ref doc:name="Flow-ref to deleteUser" doc:id="de88a31d-ac07-4ab0-b484-381857172581" name="deleteUser"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="dc3f9ea1-c6b3-4a7f-8941-ae1fcad5b7f3" expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(200)]" message="Expected status is 200 but returns #[vars.httpStatus]"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="updateUserStatusSuccessTest" description="Test" doc:id="78d2f8a7-57fe-4b04-9504-952d33706088" >
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="c263675e-1c89-4c26-b782-333942932819">
+				<munit:attributes value="#[MunitTools::getResourceAsString('mocked/attributes.json')]" encoding="UTF-16" mediaType="application/json" />
+			</munit:set-event>
+			<flow-ref doc:name="Flow-ref to updateUserStatus" doc:id="7f1d8422-204e-409a-91a1-667bf34b16d9" name="updateUserStatus"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="1a640f62-32ee-41f2-b110-a0d749a0e304" expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(200)]" message="Expected status is 200 but returns #[vars.httpStatus]"/>
+		</munit:validation>
+	</munit:test>
+</mule>
